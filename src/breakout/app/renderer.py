@@ -31,6 +31,7 @@ class GameRenderer:
         )
 
         self._draw_bricks(game)
+        self._draw_obstacle_lines(game)
         self._draw_paddle(game)
         pygame.draw.circle(
             self.screen,
@@ -52,6 +53,14 @@ class GameRenderer:
             highlight = brick.rect.copy()
             highlight.height = 4
             pygame.draw.rect(self.screen, (255, 255, 255, 70), highlight, border_radius=3)
+
+    def _draw_obstacle_lines(self, game) -> None:
+        for line in game.obstacle_lines:
+            pygame.draw.line(self.screen, line.color, line.start, line.end, 4)
+            pygame.draw.circle(self.screen, line.color, line.start, 3)
+            pygame.draw.circle(self.screen, line.color, line.end, 3)
+        if game.drawing_line_start is not None and game.drawing_line_end is not None:
+            pygame.draw.line(self.screen, (255, 255, 255), game.drawing_line_start, game.drawing_line_end, 2)
 
     def _draw_paddle(self, game) -> None:
         paddle_rect = game.paddle_rect()

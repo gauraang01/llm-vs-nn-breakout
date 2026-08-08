@@ -15,8 +15,9 @@ from ..gameplay.collisions import (
     resolve_brick_collision,
     resolve_paddle_collision,
     resolve_wall_collisions,
+    resolve_obstacle_line_collision,
 )
-from ..gameplay.entities import BallState, Brick, create_bricks
+from ..gameplay.entities import BallState, Brick, ObstacleLine, create_bricks
 from ..hardware.vhal import VirtualPaddleHAL
 from ..training.data_logger import TrainingDataLogger
 from .renderer import GameRenderer
@@ -43,6 +44,10 @@ class BreakoutGame:
         self.pattern_idx = 0
         self.patterns = ["solid", "checkerboard", "diamond", "hollow"]
         self.bricks: list[Brick] = create_bricks(self.field_rect, self.patterns[self.pattern_idx])
+        
+        self.obstacle_lines: list[ObstacleLine] = []
+        self.drawing_line_start: tuple[int, int] | None = None
+        self.drawing_line_end: tuple[int, int] | None = None
 
         self.manual_controller = ManualController()
         self.trajectory_predictor = TrajectoryPredictor()
@@ -105,6 +110,22 @@ class BreakoutGame:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 self._handle_keydown(event.key)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.drawing_line_start = event.pos
+                    self.drawing_line_end = event.pos
+            elif event.type == pygame.MOUSEMOTION:
+                if self.drawing_line_start is not None:
+                    self.drawing_line_end = event.pos
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1 and self.drawing_line_start is not None:
+                    self.obstacle_lines.append(ObstacleLine(
+                        start=self.drawing_line_start,
+                        end=event.pos,
+                        color=(255, 97, 109)
+                    ))
+                    self.drawing_line_start = None
+                    self.drawing_line_end = None
 
     def _handle_keydown(self, key: int) -> None:
         if key == pygame.K_ESCAPE:
@@ -136,6 +157,8 @@ class BreakoutGame:
             self.llm_controller.clear_traces()
             self.popup_message = "Mode: LLM Agent"
             self.popup_timer = 2.0
+        elif key == pygame.K_c:
+            self.obstacle_lines.clear()
 
     def _handle_space(self) -> None:
         if self.state in {PlayState.READY, PlayState.LOST_BALL}:
@@ -254,6 +277,7 @@ class BreakoutGame:
             self.llm_acted_this_flight = False
             
         self.score += resolve_brick_collision(self.ball, self.bricks)
+        resolve_obstacle_line_collision(self.ball, self.obstacle_lines)
         
         if self.ball.dy > 0 and self.ball.y > 400 and getattr(self, "llm_is_calculating", False):
             self.waiting_for_llm = True

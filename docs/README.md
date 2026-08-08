@@ -7,11 +7,13 @@ linear track by a NEMA 17 stepper motor.
 
 ## Current Stage
 
-Stage 4: LLM Agent via Ollama
+Stage 5: Augmented Reality Setup (Current)
 
 - Human control through left and right arrow keys (Mode 1).
 - Neural-network control (Mode 2) after training.
 - LLM Agent control (Mode 3) using a local Ollama model to predict targets via tool-calling.
+- Virtual Obstacle Drawing: use the mouse to click-and-drag and draw indestructible line-segment obstacles into the game arena. Press `C` to clear them.
+- Vector reflection mechanics handle dynamic Circle-Line segment collisions so the ball perfectly reflects off angled lines.
 - A fully playable Breakout field with ball, bricks (Solid, Checkerboard, Diamond, Hollow), paddle, scoring, lives, and restart flow.
 - Maps can be switched before launching the ball using the Left/Right arrow keys.
 - The game currently uses one life and records elapsed/finish time in the UI.
@@ -33,6 +35,7 @@ Stage 4: LLM Agent via Ollama
 - [Stage 3 Neural Network Controller](stage-3-neural-network-controller.md): data
   acquisition, MLP training, and neural runtime control.
 - [Stage 4 LLM Agent](stage-4-llm-agent.md): Local Ollama Tool-calling loop and Bullet Time architecture.
+- [Stage 5 Augmented Reality](stage-5-augmented-reality.md): Virtual obstacle drawing and circle-line segment collision physics preparation.
 
 ## Run
 

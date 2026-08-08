@@ -15,6 +15,13 @@ class Brick:
 
 
 @dataclass
+class ObstacleLine:
+    start: tuple[int, int]
+    end: tuple[int, int]
+    color: tuple[int, int, int] = (255, 255, 255)
+
+
+@dataclass
 class BallState:
     x: float
     y: float

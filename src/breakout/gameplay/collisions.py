@@ -5,7 +5,7 @@ import math
 import pygame
 
 from ..config import BALL, PADDLE
-from .entities import BallState, Brick
+from .entities import BallState, Brick, ObstacleLine
 
 
 def resolve_wall_collisions(ball: BallState, field_rect: pygame.Rect) -> None:
@@ -57,3 +57,45 @@ def resolve_brick_collision(ball: BallState, bricks: list[Brick]) -> int:
         return 100
 
     return 0
+
+def resolve_obstacle_line_collision(ball: BallState, lines: list[ObstacleLine]) -> None:
+    for line in lines:
+        lx = line.end[0] - line.start[0]
+        ly = line.end[1] - line.start[1]
+        line_len_sq = lx**2 + ly**2
+        
+        if line_len_sq == 0:
+            continue
+            
+        vx = ball.x - line.start[0]
+        vy = ball.y - line.start[1]
+        
+        t = (vx * lx + vy * ly) / line_len_sq
+        t = max(0.0, min(1.0, t))
+        
+        closest_x = line.start[0] + t * lx
+        closest_y = line.start[1] + t * ly
+        
+        dx = ball.x - closest_x
+        dy = ball.y - closest_y
+        dist_sq = dx**2 + dy**2
+        
+        if dist_sq <= BALL.radius**2:
+            dist = math.sqrt(dist_sq)
+            if dist == 0:
+                dist = 0.0001
+                dx = 1
+                dy = 0
+                
+            nx = dx / dist
+            ny = dy / dist
+            
+            overlap = BALL.radius - dist
+            ball.x += nx * overlap
+            ball.y += ny * overlap
+            
+            dot = ball.dx * nx + ball.dy * ny
+            
+            if dot < 0:
+                ball.dx -= 2 * dot * nx
+                ball.dy -= 2 * dot * ny
