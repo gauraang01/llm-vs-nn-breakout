@@ -25,9 +25,11 @@ from .state import ControlMode, PlayState
 
 
 class BreakoutGame:
-    def __init__(self) -> None:
+    def __init__(self, environment_mode: str = "virtual") -> None:
+        self.environment_mode = environment_mode
         pygame.init()
-        pygame.display.set_caption("Breakout - Stage 4 LLM Agent")
+        title = "Breakout - Augmented Reality Mode" if self.environment_mode == "augmented" else "Breakout - Virtual Sandbox Mode"
+        pygame.display.set_caption(title)
         self.screen = pygame.display.set_mode((SCREEN.width, SCREEN.height), pygame.SCALED | pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
         self.renderer = GameRenderer(self.screen)
@@ -111,14 +113,14 @@ class BreakoutGame:
             elif event.type == pygame.KEYDOWN:
                 self._handle_keydown(event.key)
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
+                if event.button == 1 and self.environment_mode == "virtual":
                     self.drawing_line_start = event.pos
                     self.drawing_line_end = event.pos
             elif event.type == pygame.MOUSEMOTION:
-                if self.drawing_line_start is not None:
+                if self.drawing_line_start is not None and self.environment_mode == "virtual":
                     self.drawing_line_end = event.pos
             elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1 and self.drawing_line_start is not None:
+                if event.button == 1 and self.drawing_line_start is not None and self.environment_mode == "virtual":
                     self.obstacle_lines.append(ObstacleLine(
                         start=self.drawing_line_start,
                         end=event.pos,
@@ -157,7 +159,7 @@ class BreakoutGame:
             self.llm_controller.clear_traces()
             self.popup_message = "Mode: LLM Agent"
             self.popup_timer = 2.0
-        elif key == pygame.K_c:
+        elif key == pygame.K_c and self.environment_mode == "virtual":
             self.obstacle_lines.clear()
 
     def _handle_space(self) -> None:
@@ -419,4 +421,8 @@ class BreakoutGame:
 
 
 def main() -> None:
-    BreakoutGame().run()
+    import argparse
+    parser = argparse.ArgumentParser(description="AI Augmented Breakout")
+    parser.add_argument("--mode", type=str, choices=["virtual", "augmented"], default="virtual", help="Environment mode: 'virtual' for mouse drawing, 'augmented' for camera tracking.")
+    args = parser.parse_args()
+    BreakoutGame(environment_mode=args.mode).run()
