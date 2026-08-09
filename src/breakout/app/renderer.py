@@ -59,6 +59,9 @@ class GameRenderer:
             pygame.draw.line(self.screen, line.color, line.start, line.end, 4)
             pygame.draw.circle(self.screen, line.color, line.start, 3)
             pygame.draw.circle(self.screen, line.color, line.end, 3)
+        for circle in getattr(game, 'obstacle_circles', []):
+            pygame.draw.circle(self.screen, circle.color, circle.center, circle.radius, 2)
+            pygame.draw.circle(self.screen, circle.color, circle.center, 2)
         if game.drawing_line_start is not None and game.drawing_line_end is not None:
             pygame.draw.line(self.screen, (255, 255, 255), game.drawing_line_start, game.drawing_line_end, 2)
 

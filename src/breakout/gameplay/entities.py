@@ -22,6 +22,13 @@ class ObstacleLine:
 
 
 @dataclass
+class ObstacleCircle:
+    center: tuple[int, int]
+    radius: int
+    color: tuple[int, int, int] = (255, 255, 255)
+
+
+@dataclass
 class BallState:
     x: float
     y: float

@@ -19,6 +19,8 @@ https://github.com/user-attachments/assets/72b850f6-8b25-4491-a542-902b229aa763
 Can an LLM Agent play a real-time physics game? How does it compare to a traditional Neural Network?
 
 To answer this, I built a custom Breakout engine featuring a **Virtual Hardware Abstraction Layer (V-HAL)**. The paddle doesn't just teleport—it simulates a physical NEMA-17 stepper motor on a 500mm rail, complete with strict physical limits for maximum velocity and acceleration. 
+   
+The engine also features an **Augmented Reality (AR) Pipeline** using OpenCV. You can project the game onto a whiteboard and drop physical magnets onto the board—the game detects them via a separate multiprocessed computer vision pipeline and calculates real-time elastic physics collisions against them!
 
 The engine allows you to hot-swap between three distinct "brains" mid-flight to see how different architectures handle spatial reasoning, latency, and real-time execution.
 
@@ -40,6 +42,7 @@ Instead of guessing, the LLM uses intelligent **tool-calling** to delegate to a 
 ## 🛠️ Technical Highlights
 
 * **Virtual Hardware Abstraction (V-HAL):** Maps sub-pixel game coordinates to physical millimeters, simulating mass and momentum.
+* **Augmented Reality Tracking (OpenCV):** Features a lock-free `multiprocessing` vision pipeline to track physical objects on a whiteboard without blocking the 60 FPS Pygame loop. Includes temporal smoothing (EMA), 3-second arming mechanics to prevent hand interference, and 4-point homography calibration.
 * **The "Ghost Brick" Delusion:** The project involved heavy debugging of geometric folding equations. We discovered that forcing models to predict upward flights accidentally trained them to clone mathematical delusions of an empty room, requiring dynamic ray-casting for true clairvoyance.
 * **Dynamic Telemetry UI:** A custom Pygame UI featuring segmented mode buttons, tool-calling traces, and fading badges to clearly expose the active architecture's inner workings to the viewer.
 
@@ -70,10 +73,21 @@ Instead of guessing, the LLM uses intelligent **tool-calling** to delegate to a 
    ollama pull qwen2.5:7b
    ```
 
-### Run the Game
+### Run the Game (Virtual Mode)
 ```bash
 python3 start.py
 ```
+
+### Run the Game (Augmented Reality Mode)
+1. Mount your phone and start an IP Webcam stream.
+2. Calibrate the camera's perspective and color tracking:
+   ```bash
+   python3 scripts/test_camera.py --source "http://<IP>:8080/video"
+   ```
+3. Run the game in augmented mode:
+   ```bash
+   python3 start.py --mode augmented --source "http://<IP>:8080/video"
+   ```
 
 ### Controls
 - `1`: Manual Mode

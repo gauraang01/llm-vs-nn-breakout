@@ -11,6 +11,7 @@ dependencies = [
     "pygame>=2.6,<3",
     "numpy>=1.26,<3",
     "torch>=2.2,<3",
+    "opencv-python>=4.8,<5",
 ]
 
 [tool.setuptools.packages.find]

@@ -5,7 +5,7 @@ import math
 import pygame
 
 from ..config import BALL, PADDLE
-from .entities import BallState, Brick, ObstacleLine
+from .entities import BallState, Brick, ObstacleLine, ObstacleCircle
 
 
 def resolve_wall_collisions(ball: BallState, field_rect: pygame.Rect) -> None:
@@ -99,3 +99,32 @@ def resolve_obstacle_line_collision(ball: BallState, lines: list[ObstacleLine]) 
             if dot < 0:
                 ball.dx -= 2 * dot * nx
                 ball.dy -= 2 * dot * ny
+
+
+def resolve_obstacle_circle_collision(ball: BallState, circles: list[ObstacleCircle]) -> None:
+    for circle in circles:
+        dx = ball.x - circle.center[0]
+        dy = ball.y - circle.center[1]
+        dist_sq = dx**2 + dy**2
+        min_dist = BALL.radius + circle.radius
+        
+        if dist_sq <= min_dist**2:
+            dist = math.sqrt(dist_sq)
+            if dist == 0:
+                dist = 0.0001
+                dx = 1
+                dy = 0
+                
+            nx = dx / dist
+            ny = dy / dist
+            
+            overlap = min_dist - dist
+            ball.x += nx * overlap
+            ball.y += ny * overlap
+            
+            dot = ball.dx * nx + ball.dy * ny
+            
+            if dot < 0:
+                ball.dx -= 2 * dot * nx
+                ball.dy -= 2 * dot * ny
+                return # Only bounce once per frame to prevent infinite ping-pong between overlapping magnets!

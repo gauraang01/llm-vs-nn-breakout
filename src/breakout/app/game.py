@@ -16,17 +16,20 @@ from ..gameplay.collisions import (
     resolve_paddle_collision,
     resolve_wall_collisions,
     resolve_obstacle_line_collision,
+    resolve_obstacle_circle_collision,
 )
-from ..gameplay.entities import BallState, Brick, ObstacleLine, create_bricks
+from ..gameplay.entities import BallState, Brick, ObstacleLine, ObstacleCircle, create_bricks
 from ..hardware.vhal import VirtualPaddleHAL
+from ..hardware.vision import VisionThread
 from ..training.data_logger import TrainingDataLogger
 from .renderer import GameRenderer
 from .state import ControlMode, PlayState
 
 
 class BreakoutGame:
-    def __init__(self, environment_mode: str = "virtual") -> None:
+    def __init__(self, environment_mode: str = "virtual", camera_source: str = "0") -> None:
         self.environment_mode = environment_mode
+        self.camera_source = camera_source
         pygame.init()
         title = "Breakout - Augmented Reality Mode" if self.environment_mode == "augmented" else "Breakout - Virtual Sandbox Mode"
         pygame.display.set_caption(title)
@@ -48,6 +51,8 @@ class BreakoutGame:
         self.bricks: list[Brick] = create_bricks(self.field_rect, self.patterns[self.pattern_idx])
         
         self.obstacle_lines: list[ObstacleLine] = []
+        self.obstacle_circles: list[ObstacleCircle] = []
+        self.persistent_circles: list[dict] = []
         self.drawing_line_start: tuple[int, int] | None = None
         self.drawing_line_end: tuple[int, int] | None = None
 
@@ -72,6 +77,12 @@ class BreakoutGame:
         self.popup_message = ""
         self.popup_timer = 0.0
         self.running = True
+        
+        if self.environment_mode == "augmented":
+            self.vision_thread = VisionThread(self.camera_source)
+            self.vision_thread.start()
+        else:
+            self.vision_thread = None
 
     def run(self) -> None:
         try:
@@ -85,6 +96,8 @@ class BreakoutGame:
                 self._update(dt_s)
                 self.renderer.draw(self)
         finally:
+            if getattr(self, 'vision_thread', None):
+                self.vision_thread.stop()
             self.training_logger.close()
             pygame.quit()
 
@@ -161,6 +174,7 @@ class BreakoutGame:
             self.popup_timer = 2.0
         elif key == pygame.K_c and self.environment_mode == "virtual":
             self.obstacle_lines.clear()
+            self.obstacle_circles.clear()
 
     def _handle_space(self) -> None:
         if self.state in {PlayState.READY, PlayState.LOST_BALL}:
@@ -279,7 +293,65 @@ class BreakoutGame:
             self.llm_acted_this_flight = False
             
         self.score += resolve_brick_collision(self.ball, self.bricks)
+        
+        if self.environment_mode == "augmented" and self.vision_thread:
+            camera_circles = self.vision_thread.get_obstacles()
+            new_persistent = []
+            
+            for cx, cy, r in camera_circles:
+                px = cx + self.field_rect.left
+                py = cy + self.field_rect.top
+                
+                matched = False
+                for pc in self.persistent_circles:
+                    if math.hypot(pc['circle'].center[0] - px, pc['circle'].center[1] - py) < 50:
+                        # Smooth coordinates to prevent vibrating physics
+                        old_x, old_y = pc['circle'].center
+                        new_x = int(old_x * 0.7 + px * 0.3)
+                        new_y = int(old_y * 0.7 + py * 0.3)
+                        pc['circle'].center = (new_x, new_y)
+                        pc['circle'].radius = int(pc['circle'].radius * 0.9 + r * 0.1)
+                        pc['frames_missing'] = 0
+                        pc['frames_alive'] += 1
+                        
+                        if pc['frames_alive'] < 120:
+                            pc['circle'].color = (100, 100, 100) # Ghostly gray while arming
+                        else:
+                            pc['circle'].color = (155, 89, 182) # Solid purple when armed
+                            
+                        new_persistent.append(pc)
+                        matched = True
+                        break
+                        
+                if not matched:
+                    new_persistent.append({
+                        'circle': ObstacleCircle(center=(px, py), radius=r, color=(100, 100, 100)),
+                        'frames_missing': 0,
+                        'frames_alive': 0
+                    })
+                    
+            # Keep missing circles alive for up to 15 frames (~0.25 seconds) to prevent flickering collisions
+            for pc in self.persistent_circles:
+                if pc not in new_persistent:
+                    pc['frames_missing'] += 1
+                    if pc['frames_missing'] < 15:
+                        new_persistent.append(pc)
+                        
+            self.persistent_circles = new_persistent
+            self.obstacle_circles = [pc['circle'] for pc in self.persistent_circles]
+
         resolve_obstacle_line_collision(self.ball, self.obstacle_lines)
+        
+        # Only collide with armed circles (or all circles if we are in virtual mode)
+        if self.environment_mode == "augmented":
+            active_circles = [pc['circle'] for pc in getattr(self, 'persistent_circles', []) if pc['frames_alive'] >= 120]
+            resolve_obstacle_circle_collision(self.ball, active_circles)
+        else:
+            resolve_obstacle_circle_collision(self.ball, self.obstacle_circles)
+            
+        # Double check wall collisions at the very end. 
+        # If a magnet pushed the ball completely out of bounds, this will forcefully push it back inside.
+        resolve_wall_collisions(self.ball, self.field_rect)
         
         if self.ball.dy > 0 and self.ball.y > 400 and getattr(self, "llm_is_calculating", False):
             self.waiting_for_llm = True
@@ -424,5 +496,6 @@ def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="AI Augmented Breakout")
     parser.add_argument("--mode", type=str, choices=["virtual", "augmented"], default="virtual", help="Environment mode: 'virtual' for mouse drawing, 'augmented' for camera tracking.")
+    parser.add_argument("--source", type=str, default="0", help="Camera source URL or index")
     args = parser.parse_args()
-    BreakoutGame(environment_mode=args.mode).run()
+    BreakoutGame(environment_mode=args.mode, camera_source=args.source).run()
