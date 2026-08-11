@@ -66,6 +66,11 @@ class GameRenderer:
             pygame.draw.line(self.screen, (255, 255, 255), game.drawing_line_start, game.drawing_line_end, 2)
 
     def _draw_paddle(self, game) -> None:
+        # In augmented mode, the physical trolley is the real paddle. 
+        # We hide the digital projection unless we are actively calibrating.
+        if game.environment_mode == "augmented" and game.control_mode != ControlMode.JOG:
+            return
+            
         paddle_rect = game.paddle_rect()
         target_x = int(game.target_x())
         pygame.draw.line(
