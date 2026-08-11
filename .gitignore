@@ -8,3 +8,11 @@ training_data.csv
 models/mlp_model.pt
 models/scaler.json
 artifacts/*
+
+# Package metadata
+*.egg-info/
+*.egg
+
+# Local Configurations
+cv_config.json
+display_config.json

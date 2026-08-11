@@ -8,7 +8,7 @@ from pathlib import Path
 class VisionThread:
     """Renamed internally to use Multiprocessing to avoid Mac OS SDL library collisions."""
     def __init__(self, source: str):
-        self.source = int(source) if source.isdigit() else source
+        self.source = int(source) if isinstance(source, str) and source.isdigit() else source
         self.queue = mp.Queue()
         self.process = None
         self._last_obstacles = []

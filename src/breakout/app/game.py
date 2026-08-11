@@ -27,15 +27,17 @@ from .state import ControlMode, PlayState
 
 
 class BreakoutGame:
-    def __init__(self, environment_mode: str = "virtual", camera_source: str = "0") -> None:
+    def __init__(self, environment_mode: str = "virtual", camera_source: str = "0", enable_hardware: bool = False) -> None:
         self.environment_mode = environment_mode
         self.camera_source = camera_source
+        self.enable_hardware = enable_hardware
         pygame.init()
         title = "Breakout - Augmented Reality Mode" if self.environment_mode == "augmented" else "Breakout - Virtual Sandbox Mode"
         pygame.display.set_caption(title)
-        self.screen = pygame.display.set_mode((SCREEN.width, SCREEN.height), pygame.SCALED | pygame.RESIZABLE)
+        self.physical_screen = pygame.display.set_mode((SCREEN.width, SCREEN.height), pygame.SCALED | pygame.RESIZABLE)
+        self.render_surface = pygame.Surface((SCREEN.width, SCREEN.height))
         self.clock = pygame.time.Clock()
-        self.renderer = GameRenderer(self.screen)
+        self.renderer = GameRenderer(self.render_surface)
 
         self.field_rect = pygame.Rect(32, 32, SCREEN.arena_width - 64, SCREEN.height - 64)
         self.sidebar_rect = pygame.Rect(SCREEN.arena_width, 0, SCREEN.sidebar_width, SCREEN.height)
@@ -55,6 +57,25 @@ class BreakoutGame:
         self.persistent_circles: list[dict] = []
         self.drawing_line_start: tuple[int, int] | None = None
         self.drawing_line_end: tuple[int, int] | None = None
+        
+        self.calibration_phase = -1
+        self.calibration_timer_s = 0.0
+        self.calibration_speed_right = 0.0
+        self.calibration_speed_left = 0.0
+        
+        self.projection_scale = 1.0
+        self.projection_pan_x = 0
+        self.projection_pan_y = 0
+        config_path = Path(__file__).resolve().parent.parent.parent.parent / "display_config.json"
+        if config_path.exists():
+            import json
+            try:
+                with open(config_path, "r") as f:
+                    cfg = json.load(f)
+                    self.projection_scale = cfg.get("scale", 1.0)
+                    self.projection_pan_x = cfg.get("pan_x", 0)
+                    self.projection_pan_y = cfg.get("pan_y", 0)
+            except Exception: pass
 
         self.manual_controller = ManualController()
         self.trajectory_predictor = TrajectoryPredictor()
@@ -92,9 +113,33 @@ class BreakoutGame:
                     self.popup_timer = max(0.0, self.popup_timer - dt_s)
                 self.frame += 1
                 self._handle_events()
-                self._handle_input()
-                self._update(dt_s)
+                self._handle_input(dt_s)
+                if self.control_mode != ControlMode.JOG:
+                    self._update(dt_s)
+                else:
+                    # In JOG mode, we explicitly lock the digital paddle's position based on phase
+                    if self.calibration_phase == 0:
+                        self.vhal.position_mm = 0.0
+                    elif self.calibration_phase == 1:
+                        self.vhal.position_mm = self.vhal.track_length_mm
+                        
                 self.renderer.draw(self)
+                
+                if self.environment_mode == "augmented":
+                    physical_w, physical_h = self.physical_screen.get_size()
+                    new_w = int(SCREEN.width * self.projection_scale)
+                    new_h = int(SCREEN.height * self.projection_scale)
+                    scaled_surface = pygame.transform.scale(self.render_surface, (new_w, new_h))
+                    
+                    x_offset = ((physical_w - new_w) // 2) + self.projection_pan_x
+                    y_offset = (physical_h - new_h) + self.projection_pan_y
+                    
+                    self.physical_screen.fill((0, 0, 0))
+                    self.physical_screen.blit(scaled_surface, (x_offset, y_offset))
+                    pygame.display.flip()
+                else:
+                    self.physical_screen.blit(self.render_surface, (0, 0))
+                    pygame.display.flip()
         finally:
             if getattr(self, 'vision_thread', None):
                 self.vision_thread.stop()
@@ -147,12 +192,14 @@ class BreakoutGame:
             self.running = False
         elif key == pygame.K_SPACE:
             self._handle_space()
-        elif key == pygame.K_LEFT and self.state in {PlayState.READY, PlayState.LOST_BALL}:
+        elif key == pygame.K_LEFT and self.state in {PlayState.READY, PlayState.LOST_BALL} and self.control_mode != ControlMode.JOG:
             self.pattern_idx = (self.pattern_idx - 1) % len(self.patterns)
             self.bricks = create_bricks(self.field_rect, self.patterns[self.pattern_idx])
-        elif key == pygame.K_RIGHT and self.state in {PlayState.READY, PlayState.LOST_BALL}:
+        elif key == pygame.K_RIGHT and self.state in {PlayState.READY, PlayState.LOST_BALL} and self.control_mode != ControlMode.JOG:
             self.pattern_idx = (self.pattern_idx + 1) % len(self.patterns)
             self.bricks = create_bricks(self.field_rect, self.patterns[self.pattern_idx])
+        elif key == pygame.K_r:
+            self._restart_game()
         elif key == pygame.K_1:
             self.control_mode = ControlMode.MANUAL
             self.prediction = None
@@ -175,15 +222,125 @@ class BreakoutGame:
         elif key == pygame.K_c and self.environment_mode == "virtual":
             self.obstacle_lines.clear()
             self.obstacle_circles.clear()
+        elif key == pygame.K_j and self.enable_hardware:
+            if self.control_mode == ControlMode.JOG:
+                self.control_mode = ControlMode.MANUAL
+                self.calibration_phase = -1
+                self.popup_message = "Exited Calibration Mode"
+                self.popup_timer = 2.0
+            else:
+                self.control_mode = ControlMode.JOG
+                if hasattr(self.vhal, 'is_jogging'):
+                    self.vhal.is_jogging = True
+                self.calibration_phase = 0
+                self.popup_message = "1/2: Jog to far LEFT wall. Press SPACE."
+                self.popup_timer = 999.0
+        elif key == pygame.K_f:
+            pygame.display.toggle_fullscreen()
 
+        elif key == pygame.K_EQUALS:
+            self.projection_scale = min(1.0, self.projection_scale + 0.02)
+        elif key == pygame.K_MINUS:
+            self.projection_scale = max(0.1, self.projection_scale - 0.02)
+        elif key == pygame.K_LEFTBRACKET:
+            self.projection_pan_x -= 10
+        elif key == pygame.K_RIGHTBRACKET:
+            self.projection_pan_x += 10
+        elif key == pygame.K_UP:
+            self.projection_pan_y -= 10
+        elif key == pygame.K_DOWN:
+            self.projection_pan_y += 10
+        elif key == pygame.K_COMMA:
+            self.vhal.max_velocity_mm_s = max(50.0, self.vhal.max_velocity_mm_s - 20.0)
+            self.popup_message = f"Speed: {self.vhal.max_velocity_mm_s} mm/s"
+            self.popup_timer = 2.0
+        elif key == pygame.K_PERIOD:
+            self.vhal.max_velocity_mm_s += 20.0
+            self.popup_message = f"Speed: {self.vhal.max_velocity_mm_s} mm/s"
+            self.popup_timer = 2.0
+        elif key == pygame.K_s and self.environment_mode == "augmented":
+            import json
+            from pathlib import Path
+            root_path = Path(__file__).resolve().parent.parent.parent.parent
+            
+            # Save Display Config
+            with open(root_path / "display_config.json", "w") as f:
+                json.dump({"scale": self.projection_scale, "pan_x": self.projection_pan_x, "pan_y": self.projection_pan_y}, f)
+                
+            # Save Rail Config
+            rail_path = root_path / "rail_config.json"
+            rail_cfg = {"track_length_mm": 500.0, "max_acceleration_mm_s2": 5000.0}
+            if rail_path.exists():
+                try:
+                    with open(rail_path, "r") as f:
+                        rail_cfg.update(json.load(f))
+                except Exception: pass
+            
+            rail_cfg["max_velocity_mm_s"] = self.vhal.max_velocity_mm_s
+            with open(rail_path, "w") as f:
+                json.dump(rail_cfg, f)
+                
+            self.popup_message = "All Configs Saved!"
+            self.popup_timer = 2.0
+            print("[INFO] Display and Rail configuration saved!")
+
+        
+        # Ensure physical hardware always knows if we are actively jogging
+        if hasattr(self.vhal, 'is_jogging'):
+            self.vhal.is_jogging = (self.control_mode == ControlMode.JOG)
+            
     def _handle_space(self) -> None:
+        if self.control_mode == ControlMode.JOG:
+            if self.calibration_phase == 0:
+                self.calibration_phase = 1
+                # Zero out the physical paddle's step counter
+                if hasattr(self.vhal, 'jog_target_step'):
+                    self.vhal.jog_target_step = 0
+                if hasattr(self.vhal, 'serial_conn') and self.vhal.serial_conn:
+                    self.vhal.serial_conn.write(b"Z\n")
+                self.popup_message = "2/2: Jog to far RIGHT wall. Press SPACE."
+            elif self.calibration_phase == 1:
+                # Calculate steps per mm based on how many steps they jogged
+                if hasattr(self.vhal, 'jog_target_step'):
+                    total_steps = abs(self.vhal.jog_target_step)
+                    if total_steps > 0:
+                        steps_per_mm = total_steps / self.vhal.track_length_mm
+                        self.vhal.steps_per_mm = steps_per_mm
+                        
+                        # Save to config
+                        import json
+                        from pathlib import Path
+                        rail_path = Path(__file__).resolve().parent.parent.parent.parent / "rail_config.json"
+                        try:
+                            with open(rail_path, "r") as f: cfg = json.load(f)
+                        except Exception: cfg = {}
+                        cfg["steps_per_mm"] = steps_per_mm
+                        with open(rail_path, "w") as f: json.dump(cfg, f)
+                        
+                        self.popup_message = f"Calibrated! {steps_per_mm:.1f} steps/mm"
+                    else:
+                        self.popup_message = "Calibration failed: 0 steps"
+                else:
+                    self.popup_message = "Calibrated! (Virtual Only)"
+                
+                self.popup_timer = 4.0
+                self.control_mode = ControlMode.MANUAL
+                if hasattr(self.vhal, 'is_jogging'):
+                    self.vhal.is_jogging = False
+                    self.vhal.is_calibrated = True
+                self.calibration_phase = -1
+            return
+            
         if self.state in {PlayState.READY, PlayState.LOST_BALL}:
             self._launch_ball()
             self.state = PlayState.PLAYING
         elif self.state in {PlayState.CLEARED, PlayState.GAME_OVER}:
             self._restart_game()
 
-    def _handle_input(self) -> None:
+    def _handle_input(self, dt_s: float) -> None:
+        if self.control_mode == ControlMode.JOG:
+            self._handle_jog_input(dt_s)
+            return
         if self.control_mode == ControlMode.NEURAL_NETWORK:
             self._handle_neural_controller_input()
             return
@@ -191,6 +348,21 @@ class BreakoutGame:
             self._handle_llm_agent_input()
             return
         self._handle_manual_controller_input()
+        
+    def _handle_jog_input(self, dt_s: float) -> None:
+        if not self.enable_hardware:
+            return
+        keys = pygame.key.get_pressed()
+        
+        moving = False
+        if keys[pygame.K_LEFT]:
+            self.vhal.jog_direction = 'L'
+            moving = True
+        elif keys[pygame.K_RIGHT]:
+            self.vhal.jog_direction = 'R'
+            moving = True
+        else:
+            self.vhal.jog_direction = 'S'
 
     def _handle_manual_controller_input(self) -> None:
         self.manual_controller.update_target(self.vhal, self.state)
@@ -305,7 +477,6 @@ class BreakoutGame:
                 matched = False
                 for pc in self.persistent_circles:
                     if math.hypot(pc['circle'].center[0] - px, pc['circle'].center[1] - py) < 50:
-                        # Smooth coordinates to prevent vibrating physics
                         old_x, old_y = pc['circle'].center
                         new_x = int(old_x * 0.7 + px * 0.3)
                         new_y = int(old_y * 0.7 + py * 0.3)
@@ -315,9 +486,9 @@ class BreakoutGame:
                         pc['frames_alive'] += 1
                         
                         if pc['frames_alive'] < 120:
-                            pc['circle'].color = (100, 100, 100) # Ghostly gray while arming
+                            pc['circle'].color = (100, 100, 100)
                         else:
-                            pc['circle'].color = (155, 89, 182) # Solid purple when armed
+                            pc['circle'].color = (155, 89, 182)
                             
                         new_persistent.append(pc)
                         matched = True
@@ -380,7 +551,13 @@ class BreakoutGame:
         self.elapsed_time_s = 0.0
         self.final_time_s = None
         self.bricks = create_bricks(self.field_rect, self.patterns[self.pattern_idx])
-        self.vhal = self._new_vhal()
+        
+        # Reset the physical/virtual paddle cleanly without spawning a new thread!
+        center = self.vhal.track_length_mm / 2.0
+        self.vhal.position_mm = center
+        self.vhal.target_mm = center
+        self.vhal.velocity_mm_s = 0.0
+        
         self.ball = self._new_attached_ball()
         self.state = PlayState.READY
         self.prediction = None
@@ -397,11 +574,23 @@ class BreakoutGame:
         self.llm_acted_this_flight = False
 
     def _new_vhal(self) -> VirtualPaddleHAL:
-        return VirtualPaddleHAL.centered(
-            track_length_mm=VHAL.track_length_mm,
-            max_velocity_mm_s=VHAL.max_velocity_mm_s,
-            max_acceleration_mm_s2=VHAL.max_acceleration_mm_s2,
-        )
+        if self.enable_hardware:
+            from ..hardware.vhal import PhysicalPaddleHAL
+            hal = PhysicalPaddleHAL.centered(
+                track_length_mm=VHAL.track_length_mm,
+                max_velocity_right_mm_s=VHAL.max_velocity_right_mm_s,
+                max_velocity_left_mm_s=VHAL.max_velocity_left_mm_s,
+                max_acceleration_mm_s2=VHAL.max_acceleration_mm_s2,
+            )
+            hal.steps_per_mm = getattr(VHAL, "steps_per_mm", 20.0)
+            return hal
+        else:
+            return VirtualPaddleHAL.centered(
+                track_length_mm=VHAL.track_length_mm,
+                max_velocity_right_mm_s=VHAL.max_velocity_right_mm_s,
+                max_velocity_left_mm_s=VHAL.max_velocity_left_mm_s,
+                max_acceleration_mm_s2=VHAL.max_acceleration_mm_s2,
+            )
 
     def _new_attached_ball(self) -> BallState:
         paddle_rect = self.paddle_rect()

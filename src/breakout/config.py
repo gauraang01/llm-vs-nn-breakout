@@ -15,8 +15,10 @@ class ScreenConfig:
 @dataclass(frozen=True)
 class VHALConfig:
     track_length_mm: float = 500.0
-    max_velocity_mm_s: float = 320.0
+    max_velocity_right_mm_s: float = 320.0
+    max_velocity_left_mm_s: float = 320.0
     max_acceleration_mm_s2: float = 1000.0
+    steps_per_mm: float = 20.0
 
 
 @dataclass(frozen=True)
@@ -28,7 +30,7 @@ class PaddleConfig:
 
 @dataclass(frozen=True)
 class BallConfig:
-    radius: int = 10
+    radius: int = 12
     speed_px_s: float = 300.0
 
 
@@ -53,7 +55,27 @@ class LLMConfig:
 
 
 SCREEN = ScreenConfig()
-VHAL = VHALConfig()
+
+def _load_vhal_config() -> VHALConfig:
+    import json
+    from pathlib import Path
+    config_path = Path(__file__).resolve().parent.parent.parent / "rail_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, "r") as f:
+                cfg = json.load(f)
+                return VHALConfig(
+                    track_length_mm=cfg.get("track_length_mm", 500.0),
+                    max_velocity_right_mm_s=cfg.get("max_velocity_right_mm_s", cfg.get("max_velocity_mm_s", 320.0)),
+                    max_velocity_left_mm_s=cfg.get("max_velocity_left_mm_s", cfg.get("max_velocity_mm_s", 320.0)),
+                    max_acceleration_mm_s2=cfg.get("max_acceleration_mm_s2", 1000.0),
+                    steps_per_mm=cfg.get("steps_per_mm", 20.0)
+                )
+        except Exception:
+            pass
+    return VHALConfig()
+
+VHAL = _load_vhal_config()
 PADDLE = PaddleConfig()
 BALL = BallConfig()
 BRICKS = BrickConfig()

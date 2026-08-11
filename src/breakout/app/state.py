@@ -15,3 +15,4 @@ class ControlMode(Enum):
     MANUAL = "manual"
     NEURAL_NETWORK = "neural_network_controller"
     LLM_AGENT = "llm_agent"
+    JOG = "jog"

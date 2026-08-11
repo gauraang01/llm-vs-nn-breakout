@@ -84,17 +84,29 @@ python3 start.py
    ```bash
    python3 scripts/test_camera.py --source "http://<IP>:8080/video"
    ```
-3. Run the game in augmented mode:
    ```bash
    python3 start.py --mode augmented --source "http://<IP>:8080/video"
    ```
+
+### Run the Game (Physical Hardware Mode)
+Want the AI to control a physical stepper motor on a desk? Connect an Arduino running `arduino/rail.ino` via USB and append the `--hardware` flag.
+```bash
+python3 start.py --mode augmented --hardware --source "http://<IP>:8080/video"
+```
+**Hardware Calibration:** The engine uses an Absolute Position Step protocol to prevent physical drift. 
+1. Press `j` in-game to enter Calibration Mode.
+2. Jog to the left wall using your arrow keys. Press `Space`.
+3. Jog to the right wall using your arrow keys. Press `Space`.
+The game calculates exact sub-millimeter steps and perfectly locks the physical trolley to the digital paddle.
 
 ### Controls
 - `1`: Manual Mode
 - `2`: Neural Network Mode
 - `3`: LLM Agent Mode
-- `Left/Right Arrows`: Switch Maps (Solid, Checkerboard, Diamond, Hollow) *Before launch*
-- `Space`: Launch Ball / Restart
+- `Left/Right Arrows`: Switch Maps / Jog Hardware
+- `Space`: Launch Ball / Restart / Confirm Calibration
+- `j`: Enter/Exit Hardware Calibration Mode
+- `c`: Clear Obstacles (Virtual Mode)
 - `Escape`: Quit
 
 ---
