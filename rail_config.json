@@ -1,1 +1,1 @@
-{"track_length_mm": 3000.0, "max_acceleration_mm_s2": 5000.0, "max_velocity_mm_s": 968.7931645356689, "max_velocity_right_mm_s": 948.4666455896332, "max_velocity_left_mm_s": 989.1196834817044, "steps_per_mm": 0.9266666666666666}
+{"track_length_mm": 3000.0, "max_acceleration_mm_s2": 5000.0, "max_velocity_mm_s": 968.7931645356689, "max_velocity_right_mm_s": 948.4666455896332, "max_velocity_left_mm_s": 989.1196834817044, "steps_per_mm": 1.1633333333333333}

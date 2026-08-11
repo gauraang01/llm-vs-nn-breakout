@@ -485,7 +485,7 @@ class BreakoutGame:
                         pc['frames_missing'] = 0
                         pc['frames_alive'] += 1
                         
-                        if pc['frames_alive'] < 120:
+                        if pc['frames_alive'] < 6:
                             pc['circle'].color = (100, 100, 100)
                         else:
                             pc['circle'].color = (155, 89, 182)
@@ -515,7 +515,7 @@ class BreakoutGame:
         
         # Only collide with armed circles (or all circles if we are in virtual mode)
         if self.environment_mode == "augmented":
-            active_circles = [pc['circle'] for pc in getattr(self, 'persistent_circles', []) if pc['frames_alive'] >= 120]
+            active_circles = [pc['circle'] for pc in getattr(self, 'persistent_circles', []) if pc['frames_alive'] >= 6]
             resolve_obstacle_circle_collision(self.ball, active_circles)
         else:
             resolve_obstacle_circle_collision(self.ball, self.obstacle_circles)
