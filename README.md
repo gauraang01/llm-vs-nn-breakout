@@ -14,7 +14,7 @@
 https://github.com/user-attachments/assets/72b850f6-8b25-4491-a542-902b229aa763
 
 ### Augmented Reality & Hardware Demo
-<video src="assets/ai-augmented-breakout-demo.mp4" controls="controls" width="100%"></video>
+<video src="assets/augmented_breakout.mp4" controls="controls" width="100%"></video>
 
 ---
 
