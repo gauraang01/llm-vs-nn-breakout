@@ -14,9 +14,9 @@
 https://github.com/user-attachments/assets/72b850f6-8b25-4491-a542-902b229aa763
 
 ### Augmented Reality & Hardware Demo
-<video width="100%" controls>
-  <source src="https://raw.githubusercontent.com/gauraang01/llm-vs-nn-breakout/main/assets/augmented_breakout.mp4" type="video/mp4">
-</video>
+[![Watch the Augmented Reality Demo](https://img.shields.io/badge/🎥_Watch_Video-Augmented_Reality_Demo-blue?style=for-the-badge)](https://github.com/gauraang01/llm-vs-nn-breakout/blob/main/assets/augmented_breakout.mp4)
+
+*(Click the button above to watch the full 31-second AR and physical hardware demo!)*
 
 ---
 
