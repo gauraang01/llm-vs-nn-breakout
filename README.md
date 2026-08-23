@@ -10,11 +10,11 @@
 
 ## 🎥 Demos
 
+### Augmented Reality & Hardware Demo
+https://github.com/user-attachments/assets/32f1e31e-c5ef-4b44-ae04-c48826e9f986
+
 ### Virtual Sandbox Demo
 https://github.com/user-attachments/assets/72b850f6-8b25-4491-a542-902b229aa763
-
-### Augmented Reality & Hardware Demo
-https://github.com/user-attachments/assets/30d756b7-c18c-4d04-9bf7-17a06338f2e8
 
 ---
 
