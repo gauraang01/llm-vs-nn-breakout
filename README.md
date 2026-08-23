@@ -14,7 +14,7 @@
 https://github.com/user-attachments/assets/72b850f6-8b25-4491-a542-902b229aa763
 
 ### Augmented Reality & Hardware Demo
-https://github.com/gauraang01/llm-vs-nn-breakout/raw/main/assets/augmented_breakout.mp4
+<video src="https://raw.githubusercontent.com/gauraang01/llm-vs-nn-breakout/main/assets/augmented_breakout.mp4" controls="controls" muted="muted" width="100%"></video>
 
 ---
 
