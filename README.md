@@ -82,8 +82,9 @@ python3 start.py
 1. Mount your phone and start an IP Webcam stream.
 2. Calibrate the camera's perspective and color tracking:
    ```bash
-   python3 scripts/test_camera.py --source "http://<IP>:8080/video"
+   python3 start.py --camera-config --source "http://<IP>:8080/video"
    ```
+3. Play the game with the AR pipeline enabled:
    ```bash
    python3 start.py --mode augmented --source "http://<IP>:8080/video"
    ```
@@ -94,9 +95,13 @@ Want the AI to control a physical stepper motor on a desk? Connect an Arduino ru
 python3 start.py --mode augmented --hardware --source "http://<IP>:8080/video"
 ```
 **Hardware Calibration:** The engine uses an Absolute Position Step protocol to prevent physical drift. 
-1. Press `j` in-game to enter Calibration Mode.
-2. Jog to the left wall using your arrow keys. Press `Space`.
-3. Jog to the right wall using your arrow keys. Press `Space`.
+1. Run the interactive rail setup to set max speed and track length:
+   ```bash
+   python3 start.py --rail-config
+   ```
+2. Press `j` in-game to enter Calibration Mode.
+3. Jog to the left wall using your arrow keys. Press `Space`.
+4. Jog to the right wall using your arrow keys. Press `Space`.
 The game calculates exact sub-millimeter steps and perfectly locks the physical trolley to the digital paddle.
 
 ### Controls
@@ -107,6 +112,11 @@ The game calculates exact sub-millimeter steps and perfectly locks the physical 
 - `Space`: Launch Ball / Restart / Confirm Calibration
 - `j`: Enter/Exit Hardware Calibration Mode
 - `c`: Clear Obstacles (Virtual Mode)
+- `s`: Save active configuration (`display_config.json`, `rail_config.json`) (AR Mode)
+- `f`: Toggle Fullscreen
+- `=`, `-`: Adjust Projection Scale (AR Mode)
+- `[`, `]`, `Up`, `Down`: Pan Projection (AR Mode)
+- `<`, `>`: Adjust max hardware velocity
 - `Escape`: Quit
 
 ---

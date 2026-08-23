@@ -50,13 +50,22 @@ final numbers should be adjusted after measuring the real mechanical system,
 driver microstepping, belt or lead-screw pitch, supply voltage, and moving mass.
 
 ## Control Contract
-
-All paddle movement must go through:
-
-```python
-vhal.set_target_mm(target_mm)
-vhal.update(dt_seconds)
-```
-
-Game code should then read `vhal.position_mm` or use the mapping helper to derive
-the paddle's pixel position.
+ 
+ All paddle movement must go through:
+ 
+ ```python
+ vhal.set_target_mm(target_mm)
+ vhal.update(dt_seconds)
+ ```
+ 
+ Game code should then read `vhal.position_mm` or use the mapping helper to derive
+ the paddle's pixel position.
+ 
+ ## Physical Hardware (`PhysicalPaddleHAL`)
+ 
+ When the game is launched with the `--hardware` flag, the engine swaps `VirtualPaddleHAL` for `PhysicalPaddleHAL`.
+ 
+ - Connects to an Arduino running `arduino/rail.ino` over a Serial USB connection at 115200 baud.
+ - Runs an asynchronous thread at 120Hz to send an Absolute Position Step protocol (e.g., `P<step_count>\n`).
+ - **Jog Calibration**: Users can press `j` in-game to enter Calibration Mode. This allows the user to manually jog the motor to the left and right bounds to calculate the exact `steps_per_mm` multiplier, ensuring the physical paddle aligns flawlessly with the virtual projection.
+ - Speeds and acceleration limits can be configured interactively using `python start.py --rail-config` and are saved to `rail_config.json`.

@@ -19,6 +19,7 @@ src/breakout_vhal/
     state.py              # play-state and control-mode enums
     time_utils.py         # elapsed/finish time formatting
   controllers/
+    llm.py                # Ollama tool-calling agent controller
     manual.py             # keyboard target generation
     mathematical.py       # deterministic reflection-geometry controller
     neural.py             # PyTorch model loader and inference controller
@@ -26,7 +27,11 @@ src/breakout_vhal/
     collisions.py         # wall, paddle, and brick collision resolution
     entities.py           # ball and brick data structures plus brick factory
   hardware/
-    vhal.py               # virtual hardware motion model
+    vhal.py               # virtual & physical hardware motion model (Serial Arduino)
+    vision.py             # multiprocessing OpenCV pipeline for Augmented Reality
+  tools/
+    aim_predictor.py          # tool for the LLM to predict paddle offset
+    trajectory_predictor.py   # tool for the LLM to predict ball bounce trajectory
   training/
     data_logger.py        # CSV writer for supervised training samples
     mlp_model.py          # shared PyTorch MLP architecture
@@ -59,6 +64,11 @@ Package ownership:
      - Upward ball motion sends the paddle to the center rest position.
      - Downward ball motion is scaled and passed through the trained MLP.
      - The predicted target is clamped to the 0-500 mm track.
+   - LLM Agent Controller mode:
+     - If the ball is falling, an async thread is spawned to query the local Ollama model.
+     - The LLM calls the `TrajectoryPredictor` and `AimPredictor` tools to gather environment data.
+     - The LLM synthesizes a target JSON which is clamped to the 0-500 mm track.
+     - The game continues playing while the async query resolves.
 3. Each frame advances the V-HAL with `dt`.
 4. The game reads the V-HAL paddle position and maps it to the screen.
 5. Ball, brick, wall, paddle, scoring, and life collisions are resolved.
