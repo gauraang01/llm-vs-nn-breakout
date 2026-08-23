@@ -379,7 +379,7 @@ class BreakoutGame:
             paddle_min_center_x=self.paddle_min_center_x,
             paddle_max_center_x=self.paddle_max_center_x,
             track_length_mm=VHAL.track_length_mm,
-            brick_rects=[brick.rect for brick in self.bricks if brick.alive],
+            brick_rects=self._get_all_obstacle_rects(),
         )
         self.vhal.set_target_mm(self.prediction.target_mm)
 
@@ -424,7 +424,7 @@ class BreakoutGame:
                         paddle_min_center_x=self.paddle_min_center_x,
                         paddle_max_center_x=self.paddle_max_center_x,
                         track_length_mm=VHAL.track_length_mm,
-                        brick_rects=[brick.rect for brick in self.bricks if brick.alive],
+                        brick_rects=self._get_all_obstacle_rects(),
                         log_callback=log_trace,
                         draw_callback=lambda: None
                     )
@@ -600,6 +600,33 @@ class BreakoutGame:
             dx=0.0,
             dy=0.0,
         )
+
+    def _get_all_obstacle_rects(self) -> list[pygame.Rect]:
+        rects = [brick.rect for brick in self.bricks if brick.alive]
+        
+        # Add bounding boxes for augmented reality circles
+        if self.environment_mode == "augmented":
+            active_circles = [pc['circle'] for pc in getattr(self, 'persistent_circles', []) if pc['frames_alive'] >= 6]
+        else:
+            active_circles = getattr(self, 'obstacle_circles', [])
+            
+        for circle in active_circles:
+            rects.append(pygame.Rect(
+                circle.center[0] - circle.radius,
+                circle.center[1] - circle.radius,
+                circle.radius * 2,
+                circle.radius * 2
+            ))
+            
+        # Add bounding boxes for drawn lines (virtual mode)
+        for line in getattr(self, 'obstacle_lines', []):
+            left = min(line.start[0], line.end[0])
+            top = min(line.start[1], line.end[1])
+            width = max(abs(line.end[0] - line.start[0]), 2)
+            height = max(abs(line.end[1] - line.start[1]), 2)
+            rects.append(pygame.Rect(left, top, width, height))
+            
+        return rects
 
     def _attach_ball_to_paddle(self) -> None:
         paddle_rect = self.paddle_rect()
